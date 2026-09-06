@@ -14,7 +14,6 @@
     voppLabel: document.getElementById("vopp-label"),
     fieldVopp: document.getElementById("field-vopp"),
     voppUnit: document.getElementById("vopp-unit"),
-    zpna: document.getElementById("zpna"),
     zdut: document.getElementById("zdut"),
     metrics: document.getElementById("metrics"),
     refBody: document.getElementById("ref-body"),
@@ -146,13 +145,9 @@
     if (drive === "diff" || drive === "se") state.drive = drive;
     const path = q.get("dir");
     if (path === "rx" || path === "src") state.path = path;
-    const zp = RF.parseNumber(q.get("zp"));
+    state.zpna = 50;
     const zd = RF.parseNumber(q.get("zd"));
-    const z = RF.parseNumber(q.get("z"));
-    if (zp > 0) state.zpna = zp;
-    else if (z > 0) state.zpna = z;
     if (zd > 0) state.zdut = zd;
-    else if (z > 0) state.zdut = z;
     const unit = q.get("u");
     if (unit === "V" || unit === "mV") state.unit = unit;
     const src = q.get("from");
@@ -171,7 +166,6 @@
     const q = new URLSearchParams();
     q.set("m", state.drive);
     q.set("dir", state.path);
-    q.set("zp", String(state.zpna));
     q.set("zd", String(state.zdut));
     q.set("from", state.source);
     q.set("u", state.unit);
@@ -194,9 +188,9 @@
   }
 
   function compute() {
-    state.zpna = readZ(els.zpna);
+    state.zpna = 50;
     state.zdut = readZ(els.zdut);
-    if (!(state.zpna > 0) || !(state.zdut > 0)) {
+    if (!(state.zdut > 0)) {
       state.result = null;
       render(false);
       return;
@@ -278,19 +272,12 @@
     if (els.voppHint) els.voppHint.textContent = copy.voppHint;
 
     els.voppUnit.value = state.unit;
-    if (document.activeElement !== els.zpna && Number.isFinite(state.zpna)) {
-      els.zpna.value = String(state.zpna);
-    }
     if (document.activeElement !== els.zdut && Number.isFinite(state.zdut)) {
       els.zdut.value = String(state.zdut);
     }
 
-    document.querySelectorAll(".chips").forEach(function (group) {
-      const target = group.getAttribute("data-target");
-      const value = target === "zdut" ? state.zdut : state.zpna;
-      group.querySelectorAll(".chip").forEach(function (chip) {
-        chip.classList.toggle("is-active", Number(chip.getAttribute("data-z")) === value);
-      });
+    document.querySelectorAll(".chips[data-target='zdut'] .chip").forEach(function (chip) {
+      chip.classList.toggle("is-active", Number(chip.getAttribute("data-z")) === state.zdut);
     });
 
     const zpTxt = zLabel("Z<sub>PNA</sub>", state.zpna);
@@ -480,19 +467,15 @@
     compute();
   });
 
-  els.zpna.addEventListener("input", compute);
   els.zdut.addEventListener("input", compute);
-  els.zpna.addEventListener("focus", function (event) { event.target.select(); });
   els.zdut.addEventListener("focus", function (event) { event.target.select(); });
 
   els.calc.addEventListener("click", function (event) {
     const chip = event.target.closest(".chip[data-z]");
     if (!chip) return;
     const group = chip.parentElement;
-    const target = group && group.getAttribute("data-target");
-    const input = target === "zdut" ? els.zdut : target === "zpna" ? els.zpna : null;
-    if (!input) return;
-    input.value = chip.getAttribute("data-z");
+    if (!group || group.getAttribute("data-target") !== "zdut") return;
+    els.zdut.value = chip.getAttribute("data-z");
     compute();
   });
 
@@ -511,7 +494,6 @@
   });
 
   readQuery();
-  els.zpna.value = String(state.zpna);
   els.zdut.value = String(state.zdut);
   els.voppUnit.value = state.unit;
   if (state.source === "dbm") {
